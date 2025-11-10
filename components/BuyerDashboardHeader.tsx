@@ -4,7 +4,7 @@ import { WalletConnect } from "./walletConnect";
 import { useRole } from "@/contexts/RoleContext";
 import { Settings } from "lucide-react";
 
-export default function DashboardHeader() {
+export default function BuyerDashboardHeader() {
   const { setUserRole } = useRole();
 
   const handleRoleSwitch = () => {
@@ -13,23 +13,20 @@ export default function DashboardHeader() {
 
   return (
     <header className="h-16 bg-[var(--card-background)] border-b border-[var(--border-color)] flex items-center justify-between px-6">
-      {/* Left side - Seller's Dashboard */}
+      {/* Left side - Buyer's Dashboard */}
       <div>
-        <h1 className="text-white font-semibold text-lg">Seller's Dashboard</h1>
+        <h1 className="text-white font-semibold text-lg">Buyer's Dashboard</h1>
       </div>
 
       {/* Right side - Actions */}
       <div className="flex items-center space-x-4">
-        {/* Register Your IP Button */}
-        <Link href="/store">
-          <button className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2">
+        {/* Browse IPs Button */}
+        <Link href="/marketplace">
+          <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 1a3 3 0 003 3v8a3 3 0 01-6 0V4a3 3 0 013-3z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 10v2a7 7 0 01-14 0v-2" />
-              <line x1="12" y1="19" x2="12" y2="23" strokeWidth={2} />
-              <line x1="8" y1="23" x2="16" y2="23" strokeWidth={2} />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <span>Register Your IP</span>
+            <span>Browse IPs</span>
           </button>
         </Link>
 

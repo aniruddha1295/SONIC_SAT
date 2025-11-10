@@ -5,6 +5,7 @@ import "./globals.css";
 import { ContextProvider } from ".";
 import ReactQueryProvider from "./ReactQueryProvider";
 import { IPProvider } from "@/contexts/IPContext";
+import { RoleProvider } from "@/contexts/RoleContext";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 const geistMono = Geist_Mono({
@@ -36,13 +37,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geist.variable} ${geistMono.variable} ${funnelDisplay.variable} ${funnelSans.variable} font-sans`}
+        className={`${geist.variable} ${geistMono.variable} ${funnelDisplay.variable} ${funnelSans.variable} antialiased`}
       >
         <ReactQueryProvider>
           <ContextProvider>
-            <IPProvider>
-              {children}
-            </IPProvider>
+            <RoleProvider>
+              <IPProvider>
+                {children}
+              </IPProvider>
+            </RoleProvider>
           </ContextProvider>
         </ReactQueryProvider>
       </body>

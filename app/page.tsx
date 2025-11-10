@@ -5,7 +5,8 @@ import FeaturedCard from "@/components/FeaturedCard";
 import ContentList from "@/components/ContentList";
 import { StatCard } from "@/components/StatCard";
 import { useIP } from "@/contexts/IPContext";
-import { useState, useRef } from "react";
+import AppRouter from "@/components/AppRouter";
+import { useState, useRef, useEffect } from "react";
 import { 
   FileText, 
   Users, 
@@ -21,7 +22,13 @@ import {
 export default function Home() {
   const { registeredIPs } = useIP();
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  
+  // Ensure client-side rendering
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
   
   // Get the most recent IP for featured card
   const mostRecentIP = registeredIPs.length > 0 ? registeredIPs[registeredIPs.length - 1] : null;
@@ -68,8 +75,9 @@ export default function Home() {
   
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <AppRouter>
+      <DashboardLayout>
+        <div className="space-y-6">
         {/* Featured Content - Most Recent IP */}
         {mostRecentIP ? (
           <FeaturedCard
@@ -96,12 +104,15 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <StatCard
             label="Registered IP dSFTs"
-            value={registeredIPs.length}
+            value={registeredIPs.length.toString()}
             icon={FileText}
           />
           <StatCard
             label="Profile Views"
-            value={registeredIPs.reduce((total, ip) => total + ip.profileViews, 0)}
+            value={registeredIPs.reduce((total, ip) => {
+              const views = ip.profileViews;
+              return total + (isNaN(views) ? 0 : views);
+            }, 0).toString()}
             icon={TrendingUp}
           />
         </div>
@@ -131,6 +142,7 @@ export default function Home() {
         preload="metadata"
         crossOrigin="anonymous"
       />
-    </DashboardLayout>
+      </DashboardLayout>
+    </AppRouter>
   );
 }
