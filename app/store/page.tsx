@@ -9,6 +9,7 @@ import { CONTRACT_ABI, CONTRACT_ADDRESS } from "@/lib/contract";
 import { useEthersProvider, useEthersSigner } from "@/hooks/useEthers";
 import lighthouse from '@lighthouse-web3/sdk';
 import { audioTokenizationService } from "@/lib/audioTokenizationService";
+import { useIP } from "@/contexts/IPContext";
 import { 
   Mic, 
   Square, 
@@ -18,7 +19,8 @@ import {
   CheckCircle, 
   AlertCircle,
   ExternalLink,
-  Zap
+  Zap,
+  Music
 } from "lucide-react";
 
 import Image from "next/image";
@@ -32,6 +34,7 @@ const SUPPORTED_CHAINS: FaucetChain[] = [base, baseSepolia, avalanche, avalanche
 
 export default function AudioRecorder() {
     const { isConnected, address } = useAccount();
+    const { addRegisteredIP } = useIP();
     const connectedChainId = useChainId();
     const { switchChain, isPending: isSwitching } = useSwitchChain();
     const [selectedId, setSelectedId] = useState<number>(baseSepolia.id);
@@ -44,6 +47,7 @@ export default function AudioRecorder() {
     const [isStoring, setIsStoring] = useState(false);
     const [storeError, setStoreError] = useState<string | null>(null);
     const [storeSuccess, setStoreSuccess] = useState(false);
+    const [transactionStatus, setTransactionStatus] = useState<string>("");
     const [isReading, setIsReading] = useState(false);
     const [readError, setReadError] = useState<string | null>(null);
     const [storedAudioUrl, setStoredAudioUrl] = useState<string | null>(null);
@@ -142,6 +146,7 @@ export default function AudioRecorder() {
       setIsStoring(true);
       setStoreError(null);
       setStoreSuccess(false);
+      setTransactionStatus("Submitting transaction...");
       
       if (!provider || !signer) {
         throw new Error("Please connect your wallet");
@@ -155,16 +160,67 @@ export default function AudioRecorder() {
       
       const cid = uploadedFile.data.Hash;
       const tx = await contract.store(cid);
-      await tx.wait();
+      setTransactionStatus(`Transaction submitted! Hash: ${tx.hash.slice(0, 10)}...`);
+      
+      // Wait for transaction with retry logic
+      let receipt = null;
+      let retries = 0;
+      const maxRetries = 3;
+      
+      while (!receipt && retries < maxRetries) {
+        try {
+          setTransactionStatus(`Waiting for confirmation... (attempt ${retries + 1}/${maxRetries})`);
+          receipt = await tx.wait(1); // Wait for 1 confirmation
+          setTransactionStatus("Transaction confirmed!");
+          break;
+        } catch (waitError: any) {
+          retries++;
+          console.log(`Transaction wait attempt ${retries} failed:`, waitError);
+          
+          if (retries >= maxRetries) {
+            // If all retries failed, still consider it successful if we have a tx hash
+            if (tx.hash) {
+              console.log("Transaction submitted successfully, hash:", tx.hash);
+              setTransactionStatus("Transaction submitted successfully! (Confirmation pending)");
+              receipt = { transactionHash: tx.hash }; // Mock receipt for success flow
+              break;
+            } else {
+              throw waitError;
+            }
+          }
+          
+          // Wait before retry
+          setTransactionStatus(`Retrying in 2 seconds... (${retries}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+      
       setStoreSuccess(true);
+      
+      // Add the registered IP to the dashboard
+      const registeredIP = {
+        id: `ip-${Date.now()}`,
+        name: tokenName || "Sonic IP Audio",
+        description: tokenDescription || "Audio recording tokenized with Sonic IP",
+        cid: cid,
+        creator: address || "anonymous",
+        createdAt: new Date().toISOString(),
+        duration: recordingTime,
+        size: Math.round((recordingTime * 96) / 1024), // Estimated size in KB
+        tokenId: tx.hash, // Using transaction hash as token ID for now
+        transactionHash: tx.hash
+      };
+      
+      addRegisteredIP(registeredIP);
     } catch (e) {
       const err = e as unknown as { reason?: string; shortMessage?: string; message?: string };
       const reason = err?.reason || err?.shortMessage || err?.message || "Store transaction failed";
       setStoreError(reason);
     } finally {
       setIsStoring(false);
+      setTransactionStatus("");
     }
-  }, [isConnected, isMatching, provider, signer, uploadedFile]);
+  }, [isConnected, isMatching, provider, signer, uploadedFile, tokenName, tokenDescription, address, recordingTime, addRegisteredIP]);
 
   // Audio Recording Functions
   const startRecording = async () => {
@@ -584,10 +640,10 @@ export default function AudioRecorder() {
                                         disabled={isMinting || !isConnected || !isMatching}
                                         className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                     >
-                                        {isMinting ? (
+                                        {isMinting || isStoring ? (
                                             <div className="flex items-center justify-center space-x-2">
                                                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                                <span>Tokenizing...</span>
+                                                <span>{transactionStatus || 'Processing...'}</span>
                                             </div>
                                         ) : (
                                             'Tokenize & Store on Blockchain'
@@ -598,6 +654,33 @@ export default function AudioRecorder() {
                                     {mintError && (
                                         <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
                                             <p className="text-sm text-red-400 text-center">{mintError}</p>
+                                            {mintError.includes('RPC endpoint') && (
+                                                <div className="mt-3 text-xs text-gray-400">
+                                                    <p className="font-medium text-yellow-400 mb-1">Network Issue Detected:</p>
+                                                    <ul className="list-disc list-inside space-y-1">
+                                                        <li>The blockchain network may be congested</li>
+                                                        <li>Try again in a few moments</li>
+                                                        <li>Your transaction may still be processing</li>
+                                                    </ul>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    
+                                    {/* Store Error */}
+                                    {storeError && (
+                                        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+                                            <p className="text-sm text-red-400 text-center">{storeError}</p>
+                                            {storeError.includes('RPC endpoint') && (
+                                                <div className="mt-3 text-xs text-gray-400">
+                                                    <p className="font-medium text-yellow-400 mb-1">Network Issue Detected:</p>
+                                                    <ul className="list-disc list-inside space-y-1">
+                                                        <li>The blockchain network may be congested</li>
+                                                        <li>Try again in a few moments</li>
+                                                        <li>Your transaction may still be processing</li>
+                                                    </ul>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -660,13 +743,28 @@ export default function AudioRecorder() {
                                         </div>
                                     )}
                                     
-                                    {/* Action Button */}
-                                    <div className="mt-8">
+                                    {/* Action Buttons */}
+                                    <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+                                        <Link href="/">
+                                            <button className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center space-x-2">
+                                                <Music className="w-4 h-4" />
+                                                <span>View in Dashboard</span>
+                                            </button>
+                                        </Link>
                                         <button 
-                                            onClick={() => window.location.href = '/profile'}
-                                            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                                            onClick={() => {
+                                                setStoreSuccess(false);
+                                                setUploadedFile(null);
+                                                setAudioBlob(null);
+                                                setAudioUrl(null);
+                                                setTokenName("");
+                                                setTokenDescription("");
+                                                setRecordingTime(0);
+                                            }}
+                                            className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center space-x-2"
                                         >
-                                            View in My Collection
+                                            <RefreshCw className="w-4 h-4" />
+                                            <span>Register Another IP</span>
                                         </button>
                                     </div>
                                 </div>

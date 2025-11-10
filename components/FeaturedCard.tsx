@@ -1,25 +1,61 @@
 "use client";
-import { Heart, Users, Play } from "lucide-react";
+import { Play, Pause } from "lucide-react";
+import { useState, useRef } from "react";
 
 interface FeaturedCardProps {
   title: string;
   genre: string;
   collaborations: string;
-  likes: string;
-  monthlyListeners: string;
   imageUrl?: string;
   gradient?: string;
+  audioUrl?: string;
 }
 
 export default function FeaturedCard({
   title,
   genre,
   collaborations,
-  likes,
-  monthlyListeners,
   imageUrl,
-  gradient = "gradient-card-1"
+  gradient = "gradient-card-1",
+  audioUrl
 }: FeaturedCardProps) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const togglePlayback = async () => {
+    if (!audioUrl || !audioRef.current) return;
+    
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      try {
+        await audioRef.current.play();
+        setIsPlaying(true);
+      } catch (error) {
+        console.error('Audio playback failed:', error);
+        // Try alternative gateway
+        const alternativeUrl = audioUrl.replace('ipfs.io', 'gateway.lighthouse.storage');
+        audioRef.current.src = alternativeUrl;
+        try {
+          await audioRef.current.play();
+          setIsPlaying(true);
+        } catch (fallbackError) {
+          console.error('Fallback audio playback failed:', fallbackError);
+          alert('Unable to play audio. The file may still be processing on IPFS.');
+        }
+      }
+    }
+  };
+
+  const handleAudioEnded = () => {
+    setIsPlaying(false);
+  };
+
+  const handleAudioError = () => {
+    console.error('Audio loading error for URL:', audioUrl);
+    setIsPlaying(false);
+  };
   return (
     <div className={`relative p-6 rounded-xl ${gradient} text-white overflow-hidden`}>
       {/* Background Pattern */}
@@ -41,27 +77,30 @@ export default function FeaturedCard({
           <p className="text-sm opacity-90">Collaborations: {collaborations}</p>
         </div>
 
-        <div className="flex items-center space-x-6 mb-6">
-          <div className="flex items-center space-x-2">
-            <Heart className="w-4 h-4" />
-            <span className="text-sm font-medium">{likes} Likes</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Users className="w-4 h-4" />
-            <span className="text-sm font-medium">{monthlyListeners} Monthly Listeners</span>
-          </div>
-        </div>
 
         {/* Action Buttons */}
         <div className="flex space-x-3">
-          <button className="flex items-center space-x-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors">
-            <Play className="w-4 h-4" />
-            <span className="text-sm font-medium">Play</span>
-          </button>
-          <button className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-            View Details
+          <button 
+            onClick={togglePlayback}
+            disabled={!audioUrl}
+            className="flex items-center space-x-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            <span className="text-sm font-medium">{isPlaying ? 'Pause' : 'Play'}</span>
           </button>
         </div>
+        
+        {/* Hidden Audio Element */}
+        {audioUrl && (
+          <audio
+            ref={audioRef}
+            src={audioUrl}
+            onEnded={handleAudioEnded}
+            onError={handleAudioError}
+            preload="metadata"
+            crossOrigin="anonymous"
+          />
+        )}
       </div>
 
       {/* Artist Image */}

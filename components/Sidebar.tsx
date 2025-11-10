@@ -15,7 +15,7 @@ import {
 
 const sidebarItems = [
   { icon: Home, label: "Dashboard", href: "/" },
-  { icon: FileText, label: "Register IP", href: "/store" },
+  { icon: FileText, label: "Register Your IP", href: "/store" },
   { icon: Key, label: "Generate ZPK", href: "/generate" },
   { icon: Users, label: "Collaborations", href: "/collaborations" },
   { icon: BarChart3, label: "Analytics", href: "/analytics" },

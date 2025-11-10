@@ -1,97 +1,145 @@
 "use client";
+import Link from "next/link";
 import DashboardLayout from "@/components/DashboardLayout";
 import FeaturedCard from "@/components/FeaturedCard";
 import ContentList from "@/components/ContentList";
 import { StatCard } from "@/components/StatCard";
+import { useIP } from "@/contexts/IPContext";
+import { useState, useRef } from "react";
 import { 
   FileText, 
   Users, 
   Shield, 
   TrendingUp,
   Music,
-  Disc3
+  Disc3,
+  Play,
+  Pause,
+  Calendar,
+  Hash
 } from "lucide-react";
 
 export default function Home() {
-  // Sample data for the dashboard
-  const latestAlbums = [
-    { id: "1", title: "Random Access Memories", artist: "Daft Punk", duration: "74:24" },
-    { id: "2", title: "Glow On", artist: "Turnstile", duration: "38:12" },
-    { id: "3", title: "Dopethrone", artist: "Electric Wizard", duration: "71:08" },
-    { id: "4", title: "The Narcotic Story", artist: "Oxbow", duration: "45:33" },
-  ];
+  const { registeredIPs } = useIP();
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  
+  // Get the most recent IP for featured card
+  const mostRecentIP = registeredIPs.length > 0 ? registeredIPs[registeredIPs.length - 1] : null;
 
-  const latestSingles = [
-    { id: "1", title: "Feel Good Inc.", artist: "Gorillaz", plays: "2.1M" },
-    { id: "2", title: "Get Lucky", artist: "Daft Punk", plays: "1.8M" },
-    { id: "3", title: "Ace of Spades", artist: "Motörhead", plays: "956K" },
-    { id: "4", title: "My War", artist: "Black Flag", plays: "743K" },
-  ];
+  const togglePlayback = async (ip: any) => {
+    const audioUrl = `https://ipfs.io/ipfs/${ip.cid}`;
+    
+    if (playingId === ip.id) {
+      // Pause current playing
+      audioRef.current?.pause();
+      setPlayingId(null);
+    } else {
+      // Play new audio
+      if (audioRef.current) {
+        audioRef.current.src = audioUrl;
+        try {
+          await audioRef.current.play();
+          setPlayingId(ip.id);
+        } catch (error) {
+          console.error('Audio playback failed:', error);
+          // Try alternative gateway
+          const alternativeUrl = audioUrl.replace('ipfs.io', 'gateway.lighthouse.storage');
+          audioRef.current.src = alternativeUrl;
+          try {
+            await audioRef.current.play();
+            setPlayingId(ip.id);
+          } catch (fallbackError) {
+            console.error('Fallback audio playback failed:', fallbackError);
+            alert('Unable to play audio. The file may still be processing on IPFS.');
+          }
+        }
+      }
+    }
+  };
+
+  const handleAudioEnded = () => {
+    setPlayingId(null);
+  };
+
+  const handleAudioError = () => {
+    console.error('Audio loading error');
+    setPlayingId(null);
+  };
+  
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Featured Content */}
-        <FeaturedCard
-          title="DIE FOR YOU"
-          genre="R&B Music"
-          collaborations="3"
-          likes="50,851"
-          monthlyListeners="2.1M"
-          gradient="gradient-card-1"
-        />
+        {/* Featured Content - Most Recent IP */}
+        {mostRecentIP ? (
+          <FeaturedCard
+            title={mostRecentIP.name}
+            genre="Audio IP"
+            collaborations="1"
+            gradient="gradient-card-1"
+            audioUrl={`https://ipfs.io/ipfs/${mostRecentIP.cid}`}
+          />
+        ) : (
+          <Link href="/store">
+            <div className="cursor-pointer hover:scale-[1.02] transition-transform">
+              <FeaturedCard
+                title="Register Your First IP"
+                genre="Get Started"
+                collaborations="0"
+                gradient="gradient-card-1"
+              />
+            </div>
+          </Link>
+        )}
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <StatCard
-            value="0"
-            label="Registered IP dSEPs"
+            label="Registered IP dSFTs"
+            value={registeredIPs.length.toString()}
             icon={FileText}
-            gradient="gradient-card-2"
+            trend={{ value: registeredIPs.length > 0 ? "100" : "0", isPositive: true }}
           />
           <StatCard
-            value="3"
             label="Creator Credentials"
+            value="3"
             icon={Shield}
-            gradient="gradient-card-3"
+            trend={{ value: "8", isPositive: true }}
           />
           <StatCard
-            value="1254"
             label="Profile Views"
+            value="1254"
             icon={TrendingUp}
-            gradient="gradient-card-4"
-            trend={{ value: "12%", isPositive: true }}
+            trend={{ value: "23", isPositive: true }}
           />
         </div>
 
         {/* Content Lists */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           <ContentList
-            title="Latest Album"
-            items={latestAlbums}
+            title="Registered IPs"
+            items={registeredIPs.length > 0 ? registeredIPs.slice().reverse().map(ip => ({
+              id: ip.id,
+              title: ip.name,
+              artist: `Created ${new Date(ip.createdAt).toLocaleDateString()}`,
+              duration: `${Math.floor(ip.duration / 60)}:${(ip.duration % 60).toString().padStart(2, '0')}`,
+              audioUrl: `https://ipfs.io/ipfs/${ip.cid}`
+            })) : []}
             type="album"
-          />
-          <ContentList
-            title="Latest Singles"
-            items={latestSingles}
-            type="single"
           />
         </div>
 
-        {/* Your Registered IPs Section */}
-        <div className="bg-[var(--card-background)] rounded-xl border border-[var(--border-color)] p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Your Registered IPs</h3>
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Music className="w-8 h-8 text-gray-400" />
-            </div>
-            <p className="text-gray-400 mb-4">No registered IPs yet. Create your first one!</p>
-            <button className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-medium transition-colors">
-              Register Your First IP
-            </button>
-          </div>
-        </div>
       </div>
+      
+      {/* Hidden Audio Element */}
+      <audio
+        ref={audioRef}
+        onEnded={handleAudioEnded}
+        onError={handleAudioError}
+        preload="metadata"
+        crossOrigin="anonymous"
+      />
     </DashboardLayout>
   );
 }

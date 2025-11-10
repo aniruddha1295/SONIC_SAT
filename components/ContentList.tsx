@@ -1,5 +1,6 @@
 "use client";
-import { Play, Plus } from "lucide-react";
+import { Play, Pause } from "lucide-react";
+import { useState, useRef } from "react";
 
 interface ContentItem {
   id: string;
@@ -7,6 +8,7 @@ interface ContentItem {
   artist: string;
   duration?: string;
   plays?: string;
+  audioUrl?: string;
 }
 
 interface ContentListProps {
@@ -16,6 +18,48 @@ interface ContentListProps {
 }
 
 export default function ContentList({ title, items, type }: ContentListProps) {
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const togglePlayback = async (item: ContentItem) => {
+    if (!item.audioUrl) return;
+
+    if (playingId === item.id) {
+      // Pause current playing
+      audioRef.current?.pause();
+      setPlayingId(null);
+    } else {
+      // Play new audio
+      if (audioRef.current) {
+        audioRef.current.src = item.audioUrl;
+        try {
+          await audioRef.current.play();
+          setPlayingId(item.id);
+        } catch (error) {
+          console.error('Audio playback failed:', error);
+          // Try alternative gateway
+          const alternativeUrl = item.audioUrl.replace('ipfs.io', 'gateway.lighthouse.storage');
+          audioRef.current.src = alternativeUrl;
+          try {
+            await audioRef.current.play();
+            setPlayingId(item.id);
+          } catch (fallbackError) {
+            console.error('Fallback audio playback failed:', fallbackError);
+            alert('Unable to play audio. The file may still be processing on IPFS.');
+          }
+        }
+      }
+    }
+  };
+
+  const handleAudioEnded = () => {
+    setPlayingId(null);
+  };
+
+  const handleAudioError = () => {
+    console.error('Audio loading error');
+    setPlayingId(null);
+  };
   return (
     <div className="bg-[var(--card-background)] rounded-xl border border-[var(--border-color)] p-6">
       <div className="flex items-center justify-between mb-6">
@@ -31,11 +75,21 @@ export default function ContentList({ title, items, type }: ContentListProps) {
             key={item.id}
             className="flex items-center space-x-4 p-3 rounded-lg hover:bg-white/5 transition-colors group"
           >
-            {/* Track Number */}
-            <div className="w-8 h-8 flex items-center justify-center text-gray-400 text-sm">
-              <span className="group-hover:hidden">{String(index + 1).padStart(2, '0')}</span>
-              <Play className="w-4 h-4 hidden group-hover:block text-white" />
-            </div>
+            {/* Track Number / Play Button */}
+            <button 
+              onClick={() => togglePlayback(item)}
+              disabled={!item.audioUrl}
+              className="w-8 h-8 flex items-center justify-center text-gray-400 text-sm hover:text-white transition-colors disabled:cursor-not-allowed"
+            >
+              {playingId === item.id ? (
+                <Pause className="w-4 h-4 text-orange-500" />
+              ) : (
+                <>
+                  <span className="group-hover:hidden">{String(index + 1).padStart(2, '0')}</span>
+                  <Play className={`w-4 h-4 hidden group-hover:block ${item.audioUrl ? 'text-white' : 'text-gray-600'}`} />
+                </>
+              )}
+            </button>
 
             {/* Album Art Placeholder */}
             <div className="w-10 h-10 bg-gradient-to-br from-gray-600 to-gray-700 rounded-lg flex items-center justify-center">
@@ -53,19 +107,19 @@ export default function ContentList({ title, items, type }: ContentListProps) {
               {item.duration || item.plays}
             </div>
 
-            {/* Add Button */}
-            <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all">
-              <Plus className="w-4 h-4 text-gray-400 hover:text-white" />
-            </button>
           </div>
         ))}
       </div>
 
-      {/* Add New Button */}
-      <button className="w-full mt-4 p-3 border-2 border-dashed border-gray-600 rounded-lg text-gray-400 hover:text-white hover:border-gray-500 transition-colors flex items-center justify-center space-x-2">
-        <Plus className="w-4 h-4" />
-        <span className="text-sm font-medium">Add New {type === 'album' ? 'Album' : 'Single'}</span>
-      </button>
+      
+      {/* Hidden Audio Element */}
+      <audio
+        ref={audioRef}
+        onEnded={handleAudioEnded}
+        onError={handleAudioError}
+        preload="metadata"
+        crossOrigin="anonymous"
+      />
     </div>
   );
 }

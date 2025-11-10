@@ -5,13 +5,14 @@ import { WalletConnect } from "./walletConnect";
 export default function DashboardHeader() {
   return (
     <header className="h-16 bg-[var(--card-background)] border-b border-[var(--border-color)] flex items-center justify-between px-6">
-      {/* Left side - Empty for clean look */}
+      {/* Left side - Seller's Dashboard */}
       <div>
+        <h1 className="text-white font-semibold text-lg">Seller's Dashboard</h1>
       </div>
 
       {/* Right side - Actions */}
       <div className="flex items-center space-x-4">
-        {/* Record/Upload Audio Button */}
+        {/* Register Your IP Button */}
         <Link href="/store">
           <button className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -20,7 +21,7 @@ export default function DashboardHeader() {
               <line x1="12" y1="19" x2="12" y2="23" strokeWidth={2} />
               <line x1="8" y1="23" x2="16" y2="23" strokeWidth={2} />
             </svg>
-            <span>Record Audio</span>
+            <span>Register Your IP</span>
           </button>
         </Link>
 
