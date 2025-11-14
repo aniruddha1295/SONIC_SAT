@@ -199,14 +199,8 @@ This project is licensed under the MIT License.
 - [Wagmi](https://wagmi.sh/) - React hooks for Ethereum
 - [OpenZeppelin](https://openzeppelin.com/) - Smart contract security
 
-## 📞 Contact
 
-- GitHub: [@hedauav](https://github.com/hedauav)
-- Project Link: [https://github.com/hedauav/SONIC](https://github.com/hedauav/SONIC)
 
----
-
-**⚡ Powered by FileCoin & IPFS**
 
 
 
