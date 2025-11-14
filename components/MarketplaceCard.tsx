@@ -13,7 +13,8 @@ export default function MarketplaceCard({ ip, onPurchase }: MarketplaceCardProps
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const togglePlayback = async () => {
-    const audioUrl = `https://ipfs.io/ipfs/${ip.cid}`;
+    const baseCidUrl = `https://ipfs.io/ipfs/${ip.cid}`;
+    const audioUrl = ip.audioFileName ? `${baseCidUrl}/${ip.audioFileName}` : baseCidUrl;
     
     if (!audioRef.current) return;
     
@@ -26,16 +27,18 @@ export default function MarketplaceCard({ ip, onPurchase }: MarketplaceCardProps
         await audioRef.current.play();
         setIsPlaying(true);
       } catch (error) {
-        console.error('Audio playback failed:', error);
-        // Try alternative gateway
-        const alternativeUrl = audioUrl.replace('ipfs.io', 'gateway.lighthouse.storage');
+        console.error('Audio playback failed, trying fallback gateway:', audioUrl, error);
+        // Try alternative gateway (Lighthouse) if ipfs.io URL fails
+        const alternativeUrl = ip.audioFileName
+          ? `https://gateway.lighthouse.storage/ipfs/${ip.cid}/${ip.audioFileName}`
+          : `https://gateway.lighthouse.storage/ipfs/${ip.cid}`;
         audioRef.current.src = alternativeUrl;
         try {
           await audioRef.current.play();
           setIsPlaying(true);
         } catch (fallbackError) {
           console.error('Fallback audio playback failed:', fallbackError);
-          alert('Unable to play audio. The file may still be processing on IPFS.');
+          // Silently fail without showing a popup to the user
         }
       }
     }
@@ -46,7 +49,7 @@ export default function MarketplaceCard({ ip, onPurchase }: MarketplaceCardProps
   };
 
   const handleAudioError = () => {
-    console.error('Audio loading error for IP:', ip.id);
+    console.error('Audio loading error for IP:', ip.id, 'URL:', audioRef.current?.src);
     setIsPlaying(false);
   };
 

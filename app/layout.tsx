@@ -1,27 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { Funnel_Display, Funnel_Sans } from "next/font/google";
 import "./globals.css";
 import { ContextProvider } from ".";
 import ReactQueryProvider from "./ReactQueryProvider";
 import { IPProvider } from "@/contexts/IPContext";
 import { RoleProvider } from "@/contexts/RoleContext";
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
-});
-const funnelDisplay = Funnel_Display({
-  subsets: ["latin"],
-  variable: "--font-funnel-display",
-  weight: ["300", "400", "500", "600", "700", "800"],
-});
-const funnelSans = Funnel_Sans({
-  subsets: ["latin"],
-  variable: "--font-funnel-sans",
-  weight: ["300", "400", "500", "600", "700", "800"],
-});
 
 // Websit Config
 export const metadata: Metadata = {
@@ -37,7 +20,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geist.variable} ${geistMono.variable} ${funnelDisplay.variable} ${funnelSans.variable} antialiased`}
+        className="antialiased"
       >
         <ReactQueryProvider>
           <ContextProvider>

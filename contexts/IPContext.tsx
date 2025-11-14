@@ -15,6 +15,7 @@ export interface RegisteredIP {
   profileViews: number;
   tokenId?: string;
   transactionHash?: string;
+  audioFileName?: string;
 }
 
 interface IPContextType {
@@ -22,6 +23,7 @@ interface IPContextType {
   addRegisteredIP: (ip: RegisteredIP) => void;
   removeRegisteredIP: (id: string) => void;
   getRegisteredIP: (id: string) => RegisteredIP | undefined;
+  updateRegisteredIPPrice: (id: string, priceAmount: string, priceNetwork: string) => void;
 }
 
 const IPContext = createContext<IPContextType | undefined>(undefined);
@@ -52,6 +54,32 @@ export function IPProvider({ children }: { children: ReactNode }) {
     return registeredIPs.find(ip => ip.id === id);
   };
 
+  const updateRegisteredIPPrice = (id: string, priceAmount: string, priceNetwork: string) => {
+    setRegisteredIPs(prev => {
+      const updated = prev.map(ip =>
+        ip.id === id ? { ...ip, priceAmount, priceNetwork } : ip
+      );
+
+      // Persist to localStorage as well
+      try {
+        const stored = localStorage.getItem('sonic-registered-ips');
+        if (stored) {
+          const existing: RegisteredIP[] = JSON.parse(stored);
+          const updatedStored = existing.map(ip =>
+            ip.id === id ? { ...ip, priceAmount, priceNetwork } : ip
+          );
+          localStorage.setItem('sonic-registered-ips', JSON.stringify(updatedStored));
+        } else {
+          localStorage.setItem('sonic-registered-ips', JSON.stringify(updated));
+        }
+      } catch (error) {
+        console.error('Error updating registered IP price in localStorage:', error);
+      }
+
+      return updated;
+    });
+  };
+
   // Load from localStorage on mount
   React.useEffect(() => {
     const stored = localStorage.getItem('sonic-registered-ips');
@@ -70,7 +98,8 @@ export function IPProvider({ children }: { children: ReactNode }) {
       registeredIPs,
       addRegisteredIP,
       removeRegisteredIP,
-      getRegisteredIP
+      getRegisteredIP,
+      updateRegisteredIPPrice
     }}>
       {children}
     </IPContext.Provider>

@@ -1,5 +1,6 @@
 "use client"
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { ArrowRight } from "lucide-react";
 
 export const WalletConnect = () => {
 
@@ -36,8 +37,9 @@ export const WalletConnect = () => {
                             if (!connected) {
                                 return (
                                     <button onClick={openConnectModal} type="button">
-                                        <div className="text-white font-medium items-center inline-flex bg-blue-600 hover:bg-blue-700 border border-blue-600 transition-colors focus:outline-none justify-center text-center px-4 py-2 rounded-lg text-sm">
-                                            Connect Wallet
+                                        <div className="items-center inline-flex bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold transition-colors focus:outline-none justify-center text-center px-8 py-3 rounded-xl text-base shadow-lg shadow-orange-500/30">
+                                            <span className="mr-2">Connect Wallet to Start</span>
+                                            <ArrowRight className="w-4 h-4" />
                                         </div>
                                     </button>
                                 );

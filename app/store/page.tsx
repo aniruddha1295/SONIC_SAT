@@ -56,6 +56,7 @@ export default function AudioRecorder() {
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadedFile, setUploadedFile] = useState<any>(null);
+    const [uploadedAudioFileName, setUploadedAudioFileName] = useState<string | null>(null);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [isStoring, setIsStoring] = useState(false);
     const [storeError, setStoreError] = useState<string | null>(null);
@@ -81,6 +82,9 @@ export default function AudioRecorder() {
     const timerRef = useRef<number | null>(null);
     const [tokenName, setTokenName] = useState("");
     const [tokenDescription, setTokenDescription] = useState("");
+    const [isVerified, setIsVerified] = useState(false);
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [verificationError, setVerificationError] = useState<string | null>(null);
 
   // Sync selected chain to connected wallet network
   useEffect(() => {
@@ -95,10 +99,28 @@ export default function AudioRecorder() {
   // Lighthouse API key - replace with your actual API key
   const LIGHTHOUSE_API_KEY = process.env.NEXT_PUBLIC_LIGHTHOUSE_API_KEY || "YOUR_API_KEY";
 
+  const selfVerifyUrl = process.env.NEXT_PUBLIC_SELF_VERIFY_URL || "https://self.app";
+
   const progressCallback = (progressData: any) => {
     let percentageDone = ((progressData?.uploaded / progressData?.total) * 100)?.toFixed(2);
     setUploadProgress(parseFloat(percentageDone) || 0);
     console.log(percentageDone);
+  };
+
+  const handleMockVerify = async () => {
+    if (!isConnected) return;
+    try {
+      setIsVerifying(true);
+      setVerificationError(null);
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      setIsVerified(true);
+    } catch (e) {
+      const err = e as unknown as { message?: string };
+      setVerificationError(err?.message || "Verification failed. Please try again.");
+      setIsVerified(false);
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   const handleTokenize = useCallback(async () => {
@@ -211,6 +233,11 @@ export default function AudioRecorder() {
       }
       
       setStoreSuccess(true);
+
+      // Build IPFS audio URL for success playback
+      if (cid && uploadedAudioFileName) {
+        setStoredAudioUrl(`https://gateway.lighthouse.storage/ipfs/${cid}/${uploadedAudioFileName}`);
+      }
       
       // Add the registered IP to the dashboard
       const registeredIP = {
@@ -226,7 +253,8 @@ export default function AudioRecorder() {
         priceAmount: priceAmount,
         profileViews: Math.floor(Math.random() * 50 + 10), // Initial random views between 10-60
         tokenId: tx.hash, // Using transaction hash as token ID for now
-        transactionHash: tx.hash
+        transactionHash: tx.hash,
+        audioFileName: uploadedAudioFileName || undefined
       };
       
       addRegisteredIP(registeredIP);
@@ -309,7 +337,8 @@ export default function AudioRecorder() {
     
     try {
       // Create a File object from Blob
-      const audioFile = new File([audioBlob], `sonic-ip-${Date.now()}.wav`, {
+      const audioFileName = `sonic-ip-${Date.now()}.wav`;
+      const audioFile = new File([audioBlob], audioFileName, {
         type: 'audio/wav',
         lastModified: Date.now()
       });
@@ -348,6 +377,7 @@ export default function AudioRecorder() {
       if (!cid) throw new Error("Upload failed: no CID returned");
      
       setUploadedFile(output);
+      setUploadedAudioFileName(audioFileName);
       setUploadProgress(100);
     } catch (e) {
       setUploadError(e instanceof Error ? e.message : "Upload failed");
@@ -381,7 +411,9 @@ export default function AudioRecorder() {
         const cid = await contract.retrieve();
         setRetrievedCid(cid);
         if (cid && cid !== "") {
-          setStoredAudioUrl(`https://gateway.lighthouse.storage/ipfs/${cid}`);
+          const baseUrl = `https://gateway.lighthouse.storage/ipfs/${cid}`;
+          const fullUrl = uploadedAudioFileName ? `${baseUrl}/${uploadedAudioFileName}` : baseUrl;
+          setStoredAudioUrl(fullUrl);
         }
       } catch (e) {
         const err = e as unknown as { reason?: string; shortMessage?: string; message?: string };
@@ -449,6 +481,84 @@ export default function AudioRecorder() {
                     </div>
                 ) : (
                     <div className="space-y-6">
+                        {/* Verification Step (frontend-only) */}
+                        <div className="bg-gradient-to-r from-blue-900/60 via-slate-900/80 to-indigo-900/60 border border-blue-500/40 rounded-2xl p-6 shadow-lg shadow-blue-900/30">
+                            <div className="flex items-center justify-between mb-4 gap-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 bg-blue-500 rounded-xl flex items-center justify-center text-white font-bold text-sm">0</div>
+                                    <div>
+                                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                            Verify with Self
+                                        </h2>
+                                        <p className="text-xs text-blue-200/80">
+                                            Identity check before you can record and tokenize your audio.
+                                        </p>
+                                    </div>
+                                </div>
+                                <span
+                                    className={`px-3 py-1 rounded-full text-[11px] font-semibold border whitespace-nowrap ${
+                                        isVerified
+                                            ? "bg-green-500/15 border-green-400/60 text-green-300"
+                                            : "bg-yellow-500/10 border-yellow-400/60 text-yellow-200"
+                                    }`}
+                                >
+                                    {isVerified ? "SELF VERIFIED" : "VERIFICATION REQUIRED"}
+                                </span>
+                            </div>
+
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                                <div className="flex-1">
+                                    <p className="text-sm text-gray-200 mb-3">
+                                        Use the Self Protocol mobile app to complete verification and confirm it here.
+                                    </p>
+                                    <ol className="list-decimal list-inside space-y-1 text-[12px] text-gray-300 mb-4">
+                                        <li>Open the Self app on your phone.</li>
+                                        <li>Scan the QR code on the right.</li>
+                                        <li>Complete the verification flow in Self.</li>
+                                        <li>Click the button below to confirm.</li>
+                                    </ol>
+
+                                    <button
+                                        onClick={handleMockVerify}
+                                        disabled={isVerifying || isVerified}
+                                        className={`mt-1 inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm shadow-blue-900/40 ${
+                                            isVerified
+                                                ? "bg-green-600 text-white cursor-default hover:bg-green-600"
+                                                : "bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                        }`}
+                                    >
+                                        {isVerifying
+                                            ? "Verifying..."
+                                            : isVerified
+                                                ? "Self verified"
+                                                : "I have verified in Self"}
+                                    </button>
+
+                                    {verificationError && (
+                                        <p className="mt-3 text-xs text-red-300 flex items-center">
+                                            <AlertCircle className="w-4 h-4 mr-1" />
+                                            {verificationError}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {!isVerified && (
+                                    <div className="flex flex-col items-center flex-none">
+                                        <div className="bg-white p-2 rounded-2xl shadow-md shadow-slate-900/40">
+                                            <img
+                                                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(selfVerifyUrl)}`}
+                                                alt="Self verification QR"
+                                                className="w-44 h-44 rounded-xl"
+                                            />
+                                        </div>
+                                        <p className="mt-2 text-[11px] text-gray-300 text-center max-w-[220px]">
+                                            Scan with the <span className="font-semibold text-white">Self Protocol</span> mobile app to start verification.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                         {/* Step 1: Record Audio */}
                         <div className="bg-[var(--card-background)] border border-[var(--border-color)] rounded-xl p-6">
                             <div className="flex items-center mb-4">
@@ -462,12 +572,12 @@ export default function AudioRecorder() {
                                 <div className="text-center py-8">
                                     <button
                                         onClick={isRecording ? stopRecording : startRecording}
-                                        disabled={!isConnected || !isMatching}
+                                        disabled={!isConnected || !isMatching || !isVerified}
                                         className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 transition-all ${
                                             isRecording 
                                                 ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
                                                 : 'bg-blue-500 hover:bg-blue-600'
-                                        } ${(!isConnected || !isMatching) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        } ${(!isConnected || !isMatching || !isVerified) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
                                         {isRecording ? (
                                             <Square className="w-8 h-8 text-white" />
@@ -476,7 +586,11 @@ export default function AudioRecorder() {
                                         )}
                                     </button>
                                     <p className="text-white font-medium">
-                                        {isRecording ? `Recording... ${formatTime(recordingTime)}` : 'Click to start recording'}
+                                        {isRecording 
+                                            ? `Recording... ${formatTime(recordingTime)}` 
+                                            : isVerified 
+                                                ? 'Click to start recording' 
+                                                : 'Complete verification above to start recording'}
                                     </p>
                                     <p className="text-gray-400 text-sm mt-2">
                                         {isRecording ? 'Click the button again to stop' : 'Speak clearly into your microphone'}
@@ -797,7 +911,7 @@ export default function AudioRecorder() {
                                     
                                     {/* Action Buttons */}
                                     <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-                                        <Link href="/">
+                                        <Link href="/seller">
                                             <button className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center space-x-2">
                                                 <Music className="w-4 h-4" />
                                                 <span>View in Dashboard</span>
